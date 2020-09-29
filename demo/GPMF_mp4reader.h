@@ -74,6 +74,8 @@ typedef struct mp4object
 	uint64_t filesize;
 	uint64_t filepos;
 
+	uint32_t creation_time;
+	
 	uint32_t timeBaseFourCC;
 } mp4object;
 

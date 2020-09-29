@@ -23,7 +23,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
-
+#include <sys/stat.h>
+#include <time.h>
+#include <libgen.h>
 #include "../GPMF_parser.h"
 #include "GPMF_mp4reader.h"
 
@@ -33,7 +35,7 @@
 #define SHOW_GPMF_STRUCTURE			0
 #define	SHOW_PAYLOAD_INDEX			0
 #define	SHOW_SCALED_DATA			1
-#define	SHOW_THIS_FOUR_CC			STR2FOURCC("STMP")
+#define	SHOW_THIS_FOUR_CC			STR2FOURCC("GPS5")
 #define SHOW_COMPUTED_SAMPLERATES	1
 
 
@@ -73,12 +75,34 @@ int main(int argc, char* argv[])
 	uint32_t show_payload_time = SHOW_PAYLOAD_TIME;
 	uint32_t show_this_four_cc = SHOW_THIS_FOUR_CC;
 
+	struct stat sb;
+	char ctime[256];
+	time_t start_time = 0;
+	FILE *xml = NULL;
+	char fname[256];
+
+	mp4object *mp4obj;
+
 	// get file return data
 	if (argc < 2)
 	{
 		printHelp(argv[0]);
 		return -1;
 	}
+
+	stat(argv[1], &sb);
+	start_time = sb.st_birthtime;
+
+	sprintf(fname, "%s.gpx", basename(argv[1]));
+	xml = fopen(fname, "w+");
+	fprintf(xml, "<?xml version=\"1.0\"?>\n");
+	fprintf(xml, "<gpx version=\"1.1\">\n");
+	fprintf(xml, "  <trk>\n");
+	fprintf(xml, "    <name>name</name>\n");
+	fprintf(xml, "    <number>1</number>\n");
+	fprintf(xml, "    <trkseg>\n");
+
+
 
 #if 1 // Search for GPMF Track
 	size_t mp4 = OpenMP4Source(argv[1], MOV_GPMF_TRAK_TYPE, MOV_GPMF_TRAK_SUBTYPE);
@@ -92,6 +116,14 @@ int main(int argc, char* argv[])
 		printHelp(argv[0]);
 		return -1;
 	}
+	//2019-11-18T15:41:25.000000Z
+	mp4obj = (mp4object *)mp4;
+	if (mp4obj->creation_time) {
+		start_time = (size_t)mp4obj->creation_time - 24107 * 24 * 3600;
+	}
+	printf("%ld\n", start_time);
+	strftime(ctime, 256, "%F %T %Z", gmtime(&start_time));
+	printf("%s\n", ctime);
 
 	for (int i = 2; i < argc; i++)
 	{
@@ -328,8 +360,19 @@ int main(int argc, char* argv[])
 
 								ptr = tmpbuffer;
 								int pos = 0;
+								double delta = (out - in) / (samples - 1);
+								double lat = 0.0;
+								double lon = 0.0;
+								double alt = 0.0;
+								char ctime[256];
+								time_t t;
+								double ns;
 								for (i = 0; i < samples; i++)
 								{
+									t = (time_t)(start_time + in + i * delta);
+									ns = start_time + in + i * delta - t;
+									strftime(ctime, 256, "%FT%T", gmtime(&t));
+									sprintf(ctime, "%s.%03dZ", ctime, (int)(1000*ns));
 									printf("  %c%c%c%c ", PRINTF_4CC(key));
 
 									for (j = 0; j < elements; j++)
@@ -341,7 +384,16 @@ int main(int argc, char* argv[])
 											ptr++;
 										}
 										else if (type_samples == 0) //no TYPE structure
+										{
+											if (j == 0) {
+												lat = *ptr;
+											} else if (j == 1) {
+												lon = *ptr;
+											} else if (j == 2) {
+												alt = *ptr;
+											}
 											printf("%.3f%s, ", *ptr++, units[j % unit_samples]);
+										}
 										else if (complextype[j] != 'F')
 										{
 											printf("%.3f%s, ", *ptr++, units[j % unit_samples]);
@@ -357,6 +409,10 @@ int main(int argc, char* argv[])
 
 
 									printf("\n");
+									fprintf(xml, "      <trkpt lat=\"%.8f\" lon=\"%.8f\">\n", lat, lon);
+									fprintf(xml, "        <ele>%.4f</ele>\n", alt);
+									fprintf(xml, "        <time>%s</time>\n", ctime);
+									fprintf(xml, "      </trkpt>\n");
 								}
 							}
 							free(tmpbuffer);
@@ -393,6 +449,11 @@ int main(int argc, char* argv[])
 
 	if (ret != 0)
 		printf("GPMF data has corruption\n");
+
+	fprintf(xml, "    </trkseg>\n");
+	fprintf(xml, "  </trk>\n");
+	fprintf(xml, "</gps>\n");
+	fclose(xml);
 
 	return (int)ret;
 }

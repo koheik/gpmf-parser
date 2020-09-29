@@ -310,6 +310,8 @@ size_t OpenMP4Source(char *filename, uint32_t traktype, uint32_t traksubtype)  /
 							md.time_scale = BYTESWAP32(md.time_scale);
 							md.duration = BYTESWAP32(md.duration);
 
+							mp4->creation_time = md.creation_time;
+							
 							mp4->trak_clockdemon = md.time_scale;
 							mp4->trak_clockcount = md.duration;
 

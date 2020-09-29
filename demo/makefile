@@ -8,6 +8,12 @@ ifneq ($(OS),Windows_NT)
 	endif
 endif
 
+gpfmgpx : GPMF_gpx.o GPMF_parser.o GPMF_mp4reader.o GPMF_print.o
+		gcc -o gpfmgpx GPMF_gpx.o GPMF_parser.o GPMF_mp4reader.o GPMF_print.o $(ASAN_FLAGS)
+
+GPMF_gpx.o : GPMF_gpx.c ../GPMF_parser.h
+		gcc -g -c GPMF_gpx.c
+
 gpmfdemo : GPMF_demo.o GPMF_parser.o GPMF_mp4reader.o GPMF_print.o
 		gcc -o gpmfdemo GPMF_demo.o GPMF_parser.o GPMF_mp4reader.o GPMF_print.o $(ASAN_FLAGS)
 
@@ -20,4 +26,4 @@ GPMF_print.o : GPMF_print.c ../GPMF_parser.h
 GPMF_parser.o : ../GPMF_parser.c ../GPMF_parser.h
 		gcc -g -c ../GPMF_parser.c
 clean :
-		rm gpmfdemo GPMF_demo.o GPMF_parser.o GPMF_mp4reader.o GPMF_print.o
+		rm -rf gpmfdemo GPMF_demo.o GPMF_parser.o GPMF_mp4reader.o GPMF_print.o gpfmgpx GPMF_gpx.o
