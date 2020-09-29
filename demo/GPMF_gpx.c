@@ -95,12 +95,16 @@ int main(int argc, char* argv[])
 
 	sprintf(fname, "%s.gpx", basename(argv[1]));
 	xml = fopen(fname, "w+");
-	fprintf(xml, "<?xml version=\"1.0\"?>\n");
-	fprintf(xml, "<gpx version=\"1.1\">\n");
-	fprintf(xml, "  <trk>\n");
-	fprintf(xml, "    <name>name</name>\n");
-	fprintf(xml, "    <number>1</number>\n");
-	fprintf(xml, "    <trkseg>\n");
+	fprintf(xml, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+	fprintf(xml, "<gpx xmlns=\"http://www.topografix.com/GPX/1/1\"\n");
+    fprintf(xml, "    xmlns:gpxacc=\"http://www.garmin.com/xmlschemas/AccelerationExtension/v1\"\n");
+    fprintf(xml, "    version=\"1.1\"\n");
+    fprintf(xml, "    creator=\"koheik.com\">\n");
+	fprintf(xml, "    <trk>\n");
+	fprintf(xml, "        <name>%s</name>\n", basename(argv[1]));
+	fprintf(xml, "        <desc>60 fps - GPS (Lat., Long., Alt., 2D speed, 3D speed) - [deg,deg,m,m/s,m/s]</desc>\n");
+	fprintf(xml, "        <src>HERO8 Black</src>\n");
+	fprintf(xml, "        <trkseg>\n");
 
 
 
@@ -157,6 +161,10 @@ int main(int argc, char* argv[])
 
 		uint32_t fr_num, fr_dem;
 		uint32_t frames = GetVideoFrameRateAndCount(mp4, &fr_num, &fr_dem);
+
+		time_t p = 0;
+
+
 		if (show_video_framerate)
 		{
 			if (frames)
@@ -371,8 +379,8 @@ int main(int argc, char* argv[])
 								{
 									t = (time_t)(start_time + in + i * delta);
 									ns = start_time + in + i * delta - t;
-									strftime(ctime, 256, "%FT%T", gmtime(&t));
-									sprintf(ctime, "%s.%03dZ", ctime, (int)(1000*ns));
+									strftime(ctime, 256, "%FT%TZ", gmtime(&t));
+									// sprintf(ctime, "%s.%03dZ", ctime, (int)(1000*ns));
 									printf("  %c%c%c%c ", PRINTF_4CC(key));
 
 									for (j = 0; j < elements; j++)
@@ -409,10 +417,13 @@ int main(int argc, char* argv[])
 
 
 									printf("\n");
-									fprintf(xml, "      <trkpt lat=\"%.8f\" lon=\"%.8f\">\n", lat, lon);
-									fprintf(xml, "        <ele>%.4f</ele>\n", alt);
-									fprintf(xml, "        <time>%s</time>\n", ctime);
-									fprintf(xml, "      </trkpt>\n");
+									if (t != p) {
+										fprintf(xml, "            <trkpt lat=\"%.8f\" lon=\"%.8f\">\n", lat, lon);
+										fprintf(xml, "                <ele>%.8f</ele>\n", alt);
+										fprintf(xml, "                <time>%s</time>\n", ctime);
+										fprintf(xml, "            </trkpt>\n");
+										p = t;
+									}
 								}
 							}
 							free(tmpbuffer);
@@ -450,9 +461,9 @@ int main(int argc, char* argv[])
 	if (ret != 0)
 		printf("GPMF data has corruption\n");
 
-	fprintf(xml, "    </trkseg>\n");
-	fprintf(xml, "  </trk>\n");
-	fprintf(xml, "</gps>\n");
+	fprintf(xml, "        </trkseg>\n");
+	fprintf(xml, "    </trk>\n");
+	fprintf(xml, "</gpx>\n");
 	fclose(xml);
 
 	return (int)ret;
